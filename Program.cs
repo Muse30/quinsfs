@@ -222,7 +222,7 @@
                 if (Valortome && ComboMenu["useQ"].Cast<CheckBox>().CurrentValue && Q.IsReady())
                 {
                     var prediction = Q.GetPrediction(target);
-                    if (prediction.HitChance >= HitChance.Medium)
+                    if (prediction.HitChance >= HitChance.High)
                     {
                         Q.Cast(prediction.CastPosition);
                     }
