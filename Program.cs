@@ -32,7 +32,7 @@
 
         public static Spell.Skillshot Q;
 
-        public static Spell.Active R, W, E2;
+        public static Spell.Active R, W;
 
         public static Menu ComboMenu { get; private set; }
 
@@ -46,6 +46,7 @@
 
         public static Menu LaneMenu { get; private set; }
 
+        private static bool Valortome { get { return R.Name == "QuinnR"; } }
 
         public static AIHeroClient lastTarget;
 
@@ -110,12 +111,11 @@
                 Q = new Spell.Skillshot(SpellSlot.Q, 1025, SkillShotType.Linear, 0, 750, 210);
                 W = new Spell.Active(SpellSlot.W, 2100);
                 E = new Spell.Targeted(SpellSlot.E, (int)675f);
-                R = new Spell.Active(SpellSlot.R, 0);
-                E2 = new Spell.Active(SpellSlot.E, 300);
+                R = new Spell.Active(SpellSlot.R, 550);
 
 
 
-            Game.OnUpdate += OnUpdate;
+                Game.OnUpdate += OnUpdate;
                 Gapcloser.OnGapcloser += Gapcloser_OnGapcloser;
                 Interrupter.OnInterruptableSpell += Interrupt;
                 Orbwalker.OnPreAttack += Orbwalker_OnPreAttack;
@@ -131,11 +131,11 @@
         {
             try
             {
-                if (MiscMenu["antiG"].Cast<CheckBox>().CurrentValue && W.IsReady())
+                if (MiscMenu["antiG"].Cast<CheckBox>().CurrentValue && Q.IsReady())
                 {
-                    if (e.Sender.IsValidTarget(W.Range))
+                    if (e.Sender.IsValidTarget(Q.Range))
                     {
-                        W.Cast(e.Sender);
+                        Q.Cast(e.Sender);
                     }
                 }
             }
@@ -194,24 +194,14 @@
                     Orbwalker.ForcedTarget = null;
                 }
 
-                if (ComboMenu["useQ"].Cast<CheckBox>().CurrentValue && target.Distance(myHero.Position) < Q.Range && Q.IsReady())
+                if (Valortome && ComboMenu["useQ"].Cast<CheckBox>().CurrentValue && Q.IsReady())
                 {
                     var prediction = Q.GetPrediction(target);
-                    if (prediction.HitChance >= HitChance.High)
+                    if (prediction.HitChance >= HitChance.Medium)
                     {
                         Q.Cast(prediction.CastPosition);
                     }
-
-                 else if (Q.IsReady() && target.Distance(myHero.Position) < E2.Range && IsValorMode)
-
-                    {
-                        if (prediction.HitChance >= HitChance.High)
-                        {
-                            Q.Cast(prediction.CastPosition);
-                        }
-
-                        return;
-                    }
+                   
                 }
             }
 
@@ -420,13 +410,6 @@
             }
         }
 
-        private static bool IsValorMode
-        {
-            get
-            {
-                return ObjectManager.Player.Spellbook.GetSpell(SpellSlot.R).Name == "QuinnRFinale";
-            }
-        }
 
         static void Orbwalker_OnPreAttack(AttackableUnit ff, Orbwalker.PreAttackArgs args)
         {
