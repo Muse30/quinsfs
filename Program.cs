@@ -165,8 +165,7 @@
 
         private static void Gapcloser_OnGapcloser(AIHeroClient sender, Gapcloser.GapcloserEventArgs e)
         {
-            try
-            {
+
                 if (MiscMenu["antiG"].Cast<CheckBox>().CurrentValue && E.IsReady())
                 {
                     if (e.Sender.IsValidTarget(E.Range))
@@ -175,14 +174,7 @@
                     }
                 }
             }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-            }
-        }
-
-                
-
+                    
         private static void AfterAA(AttackableUnit target, EventArgs args)
 
         {
@@ -199,10 +191,9 @@
             }
         }
 
-        private static void DoCombo()
+        private static void Combo()
         {
-            try
-            {
+            
                 var target = TargetSelector.GetTarget(Q.Range, DamageType.Physical);
                 if (target == null)
                 {
@@ -238,17 +229,10 @@
                     }
                 }
             }
+        
 
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-        }
-
-        private static void DoHarass()
+        private static void Harass()
         {
-            try
-            {
                 var target = TargetSelector.GetTarget(Q.Range, DamageType.Physical);
                 if (target == null)
                 {
@@ -273,11 +257,7 @@
                         Q.Cast(prediction.CastPosition);
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
+
         }
 
         private static void LaneClear()
@@ -370,20 +350,14 @@
 
         private static void Interrupt(Obj_AI_Base sender, Interrupter.InterruptableSpellEventArgs args)
         {
-            try
-            {
+
                 if (MiscMenu["interrpt"].Cast<CheckBox>().CurrentValue && E.IsReady())
                 {
                     if (sender.IsValidTarget(E.Range))
                     {
                         E.Cast(sender);
                     }
-                }
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-            }
+                }   
         }
 
         public static double QDamage(Obj_AI_Base target)
@@ -395,8 +369,6 @@
 
         private static void KsQ()
         {
-            try
-            {
                 foreach (
                     var enemy in EntityManager.Heroes.Enemies.Where(x => x.IsValidTarget(Q.Range) && !x.IsDead && !x.IsZombie))
                 {
@@ -408,12 +380,7 @@
                             Q.Cast(prediction.CastPosition);
                         }
                     }
-                }
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-            }
+                }          
         }
 
 
@@ -429,17 +396,15 @@
         }
 
         private static void OnUpdate(EventArgs args)
-        {
-            try
-            {
+        {      
                 if (myHero.IsDead)
                 {
                     return;
                 }
 
                 {
-                    if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo)) DoCombo(); 
-                    if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Harass)) DoHarass();
+                    if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo)) Combo(); 
+                    if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Harass)) Harass();
                     if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.LaneClear)) LaneClear();
                     if (Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.JungleClear)) JungleClear();
 
@@ -461,11 +426,7 @@
                     AutoE();
                 }
             }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-            }
-        }
+        
 
         private static void autoR()
         {
@@ -594,8 +555,6 @@
 
         static void Orbwalker_OnPreAttack(AttackableUnit ff, Orbwalker.PreAttackArgs args)
         {
-            try
-            {
                 if (!myHero.IsMe)
                 {
                     return;
@@ -628,11 +587,7 @@
                     }
                 }
             }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
+
         }
 
     }
-}
