@@ -30,9 +30,11 @@
 
         public static Spell.Targeted E;
 
-        public static Spell.Skillshot Q;
+        public static Spell.Skillshot Q, W;
 
-        public static Spell.Active R, W;
+        public static Spell.Active R;
+
+        public static Spell.Targeted SmiteSpell;
 
         public static Menu ComboMenu { get; private set; }
 
@@ -56,6 +58,18 @@
 
         private static Menu quinnMenu;
 
+        public static readonly string[] SmiteableUnits =
+{
+            "SRU_Red", "SRU_Blue", "SRU_Dragon", "SRU_Baron",
+            "SRU_Gromp", "SRU_Murkwolf", "SRU_Razorbeak",
+            "SRU_Krug", "Sru_Crab"
+        };
+
+        private static readonly int[] SmiteRed = { 3715, 1415, 1414, 1413, 1412 };
+
+        private static readonly int[] SmiteBlue = { 3706, 1403, 1402, 1401, 1400 };
+
+
         private static void Main(string[] args)
         {
             Loading.OnLoadingComplete += Game_OnGameLoad;
@@ -69,7 +83,6 @@
                     return;
                 }
 
-
                 quinnMenu = MainMenu.AddMenu("Quinn", "Quinn");
                 quinnMenu.AddGroupLabel("Quinn it to WIN it!");
                 ComboMenu = quinnMenu.AddSubMenu("Combo");
@@ -77,8 +90,11 @@
                 ComboMenu.Add("useQ", new CheckBox("Use Q"));
                 ComboMenu.Add("UseW", new CheckBox("Use W when enemy is not visible"));
                 ComboMenu.Add("useE", new CheckBox("Use E"));
-
-
+                ComboMenu.Add("youmus", new CheckBox("Use Yoummu"));
+                ComboMenu.Add("useitems", new CheckBox("Use Other Items"));
+                ComboMenu.Add("useSlowSmite", new CheckBox("KS with Blue Smite"));
+                ComboMenu.Add("comboWithDuelSmite", new CheckBox("Combo with Red Smite"));
+  
                 HarassMenu = quinnMenu.AddSubMenu("Harass");
                 HarassMenu.AddGroupLabel("Harass Settings");
                 HarassMenu.Add("useQ", new CheckBox("Use Q"));
@@ -87,14 +103,33 @@
                 LaneMenu.AddGroupLabel("LaneCLear Settings");
                 LaneMenu.Add("UseQlc", new CheckBox("Use Q"));
                 LaneMenu.Add("UseElc", new CheckBox("Use E"));
-                LaneMenu.Add("lcount", new Slider("Use Q on {0} Minion (0 = Don't)", 2, 0, 5));
-                LaneMenu.Add("lanem", new Slider("Minimum mana", 20, 0, 100));
+                LaneMenu.AddSeparator();
+                LaneMenu.Add("lccount", new Slider("Min minions for Q", 3, 1, 5));
+                LaneMenu.Add("lanem", new Slider("Minimum mana %", 20, 0, 100));
 
                 JungleMenu = quinnMenu.AddSubMenu("Jungleclear");
                 JungleMenu.AddGroupLabel("Jungleclear Settings");
                 JungleMenu.Add("UseQjg", new CheckBox("Use Q"));
                 JungleMenu.Add("UseEjg", new CheckBox("Use E"));
-                JungleMenu.Add("jgMana", new Slider("Minimum mana", 20, 0, 100));
+                JungleMenu.Add("jgMana", new Slider("Minimum mana %", 20, 0, 100));
+                JungleMenu.AddSeparator();
+                JungleMenu.Add("smiteActive",
+                new KeyBind("Smite Active (toggle)", true, KeyBind.BindTypes.PressToggle, 'H'));
+                JungleMenu.AddSeparator();
+                JungleMenu.AddSeparator();
+                JungleMenu.AddGroupLabel("Camps");
+                JungleMenu.AddLabel("Epics");
+                JungleMenu.Add("SRU_Baron", new CheckBox("Baron"));
+                JungleMenu.Add("SRU_Dragon", new CheckBox("Dragon"));
+                JungleMenu.AddLabel("Buffs");
+                JungleMenu.Add("SRU_Blue", new CheckBox("Blue"));
+                JungleMenu.Add("SRU_Red", new CheckBox("Red"));
+                JungleMenu.AddLabel("Small Camps");
+                JungleMenu.Add("SRU_Gromp", new CheckBox("Gromp", false));
+                JungleMenu.Add("SRU_Murkwolf", new CheckBox("Murkwolf", false));
+                JungleMenu.Add("SRU_Krug", new CheckBox("Krug", false));
+                JungleMenu.Add("SRU_Razorbeak", new CheckBox("Razerbeak", false));
+                JungleMenu.Add("Sru_Crab", new CheckBox("Skuttles", false));
 
                 KSMenu = quinnMenu.AddSubMenu("Killsteal");
                 KSMenu.AddGroupLabel("Killsteal Settings");
@@ -106,10 +141,11 @@
                 MiscMenu.Add("interrpt", new CheckBox("Use E - interrupter"));
                 MiscMenu.Add("autor", new CheckBox("Use R in Base"));
 
-                IgniteSlot = ObjectManager.Player.GetSpellSlotFromName("summonerdot");
+
+            IgniteSlot = ObjectManager.Player.GetSpellSlotFromName("summonerdot");
 
                 Q = new Spell.Skillshot(SpellSlot.Q, 1025, SkillShotType.Linear, 0, 750, 210);
-                W = new Spell.Active(SpellSlot.W, 2100);
+                W = new Spell.Skillshot(SpellSlot.W, 2100, SkillShotType.Circular, 0, 5000, 300);
                 E = new Spell.Targeted(SpellSlot.E, (int)675f);
                 R = new Spell.Active(SpellSlot.R, 550);
 
@@ -120,7 +156,7 @@
                 Interrupter.OnInterruptableSpell += Interrupt;
                 Orbwalker.OnPreAttack += Orbwalker_OnPreAttack;
                 Orbwalker.OnPostAttack += AfterAA;
-
+            Game.OnUpdate += SmiteEvent;
         }
 
 
@@ -131,11 +167,11 @@
         {
             try
             {
-                if (MiscMenu["antiG"].Cast<CheckBox>().CurrentValue && Q.IsReady())
+                if (MiscMenu["antiG"].Cast<CheckBox>().CurrentValue && E.IsReady())
                 {
-                    if (e.Sender.IsValidTarget(Q.Range))
+                    if (e.Sender.IsValidTarget(E.Range))
                     {
-                        Q.Cast(e.Sender);
+                        E.Cast(e.Sender);
                     }
                 }
             }
@@ -145,18 +181,7 @@
             }
         }
 
-
-        private static void Wvision()
-        {
-            if (Player.Instance.IsDead || Player.Instance.IsInvulnerable || !Player.Instance.IsTargetable || Player.Instance.IsZombie || Player.Instance.IsInShopRange())
-                return;
-            else if (ComboMenu["UseW"].Cast<CheckBox>().CurrentValue && lastTarget != null && W.IsReady() && lastTarget.Position.Distance(Player.Instance) < 600 && Game.Time - lastSeen > 2)           
-                    {
-                        W.Cast(predictedPos);
-                    }
-                }
-            
-       
+                
 
         private static void AfterAA(AttackableUnit target, EventArgs args)
 
@@ -201,7 +226,16 @@
                     {
                         Q.Cast(prediction.CastPosition);
                     }
-                   
+
+                    if (ComboMenu["youmus"].Cast<CheckBox>().CurrentValue)
+                    {
+                        UseItems2(target);
+                    }
+
+                    if (ComboMenu["useitems"].Cast<CheckBox>().CurrentValue)
+                    {
+                        UseItems(target);
+                    }
                 }
             }
 
@@ -247,62 +281,88 @@
         }
 
         private static void LaneClear()
+
         {
-                if (myHero.ManaPercent > LaneMenu["lanem"].Cast<Slider>().CurrentValue)
-                {
-                    if (Q.IsReady() && LaneMenu["UseQlc"].Cast<CheckBox>().CurrentValue)
-                {
-                    var allMinions = EntityManager.MinionsAndMonsters.GetLaneMinions(EntityManager.UnitTeam.Enemy, myHero.ServerPosition, Q.Range).ToList();
-
-                    if (allMinions != null)
-                        if (allMinions.FirstOrDefault().IsValidTarget(Q.Range))
-                            if (allMinions.Count >= LaneMenu["lcount"].Cast<Slider>().CurrentValue)
-                            {
-                                foreach (var minion in allMinions)
-                                {
-                                    Q.Cast(minion);
-                                }
-
-                 if (LaneMenu["UseElc"].Cast<CheckBox>().CurrentValue && E.IsReady())
-                {
-                    foreach (var minion in allMinions)
-                    {
-                        if (minion.IsValidTarget())
-                        {
-                            E.Cast(minion);
-                        }
-                    }
-                }
-            }
-        }
-            }
-        }
-
-        private static void JungleClear()
+           if (myHero.ManaPercent > LaneMenu["lanem"].Cast<Slider>().CurrentValue)
         {
-            var Mob = EntityManager.MinionsAndMonsters.GetJungleMonsters(myHero.ServerPosition, E.Range).OrderBy(x => x.MaxHealth).ToList();
-
-            if (myHero.ManaPercent > JungleMenu["jgMana"].Cast<Slider>().CurrentValue)
+            var allMinions = EntityManager.MinionsAndMonsters.Get(
+                EntityManager.MinionsAndMonsters.EntityType.Minion,
+                EntityManager.UnitTeam.Enemy,
+                ObjectManager.Player.Position,
+                Q.Range,
+                false);
+            if (allMinions == null)
             {
-                if (JungleMenu["UseQjg"].Cast<CheckBox>().CurrentValue && Q.IsReady())
+                return;
+            }
+
+            foreach (var minion in allMinions)
+            {
+                if (LaneMenu["UseQlc"].Cast<CheckBox>().CurrentValue && Q.IsReady())
                 {
-                    foreach (var minion in Mob)
+                    allMinions.Any();
                     {
-                        if (minion.IsValidTarget())
+                        var fl = EntityManager.MinionsAndMonsters.GetLineFarmLocation(allMinions, 100, (int)Q.Range);
+                        if (fl.HitNumber >= LaneMenu["lccount"].Cast<Slider>().CurrentValue)
                         {
                             Q.Cast(minion);
                         }
+
+                        if (LaneMenu["UseElc"].Cast<CheckBox>().CurrentValue && E.IsReady())
+                        {
+                            {
+                                if (minion.IsValidTarget())
+                                {
+                                    E.Cast(minion);
+                                }
+                            }
+                        }
                     }
                 }
+            }
+        }
+      }
 
-                if (JungleMenu["UseEjg"].Cast<CheckBox>().CurrentValue && E.IsReady())
+        private static void JungleClear()
+
+        {
+            var minion =
+                EntityManager.MinionsAndMonsters.GetJungleMonsters()
+                    .Where(x => x.IsValidTarget(W.Range))
+                    .OrderByDescending(x => x.MaxHealth)
+                    .FirstOrDefault(x => x != null);
+            if (minion == null)
+            {
+                return;
+            }
+
+            if (Q.IsReady() && minion.IsValidTarget(Q.Range) && JungleMenu["UseQjg"].Cast<CheckBox>().CurrentValue)
+            {
+                Q.Cast(minion);
+            }
+
+
+            if (E.IsReady() && minion.IsValidTarget(E.Range) && JungleMenu["UseEjg"].Cast<CheckBox>().CurrentValue)
+            {
+                E.Cast(minion);
+            }
+                                                            
+        }
+
+
+        private static void AutoE()
+        {
+            foreach (var enemy in EntityManager.Heroes.Enemies.Where(a => a.IsValidTarget(2100)))
+            {
+                if (enemy != null)
                 {
-                    foreach (var minion in Mob)
+                    var tpred = W.GetPrediction(enemy);
+                    var tpredcast = tpred.CastPosition.To2D();
+                    var flags = NavMesh.GetCollisionFlags(tpredcast);
+
+                    if (flags.HasFlag(CollisionFlags.Grass) && !enemy.VisibleOnScreen)
                     {
-                        if (minion.IsValidTarget())
-                        {
-                            E.Cast(minion);
-                        }
+                        W.Cast(tpredcast.To3D());
                     }
                 }
             }
@@ -395,6 +455,11 @@
                 {
                     autoR();
                 }
+
+                if (ComboMenu["UseW"].Cast<CheckBox>().CurrentValue)
+                {
+                    AutoE();
+                }
             }
             catch (Exception exception)
             {
@@ -407,6 +472,122 @@
             if (myHero.IsInShopRange() && R.Name == "QuinnR")
             {
                 R.Cast();
+            }
+        }
+
+
+        public static void SetSmiteSlot()
+        {
+            SpellSlot smiteSlot;
+            if (SmiteBlue.Any(x => myHero.InventoryItems.FirstOrDefault(a => a.Id == (ItemId)x) != null))
+                smiteSlot = myHero.GetSpellSlotFromName("s5_summonersmiteplayerganker");
+            else if (
+                SmiteRed.Any(
+                    x => myHero.InventoryItems.FirstOrDefault(a => a.Id == (ItemId)x) != null))
+                smiteSlot = myHero.GetSpellSlotFromName("s5_summonersmiteduel");
+            else
+                smiteSlot = myHero.GetSpellSlotFromName("summonersmite");
+            SmiteSpell = new Spell.Targeted(smiteSlot, 500);
+        }
+
+        public static int GetSmiteDamage()
+        {
+            var level = myHero.Level;
+            int[] smitedamage =
+            {
+                20*level + 370,
+                30*level + 330,
+                40*level + 240,
+                50*level + 100
+            };
+            return smitedamage.Max();
+        }
+
+        private static void SmiteEvent(EventArgs args)
+        {
+            SetSmiteSlot();
+            if (!SmiteSpell.IsReady() || myHero.IsDead) return;
+            if (JungleMenu["smiteActive"].Cast<KeyBind>().CurrentValue)
+            {
+                var unit =
+                    EntityManager.MinionsAndMonsters.Monsters
+                        .Where(
+                            a =>
+                                SmiteableUnits.Contains(a.BaseSkinName) && a.Health < GetSmiteDamage() &&
+                                JungleMenu[a.BaseSkinName].Cast<CheckBox>().CurrentValue)
+                        .OrderByDescending(a => a.MaxHealth)
+                        .FirstOrDefault();
+
+                if (unit != null)
+                {
+                    SmiteSpell.Cast(unit);
+                    return;
+                }
+            }
+            if (ComboMenu["useSlowSmite"].Cast<CheckBox>().CurrentValue &&
+                SmiteSpell.Handle.Name == "s5_summonersmiteplayerganker")
+            {
+                foreach (
+                    var target in
+                        EntityManager.Heroes.Enemies
+                            .Where(h => h.IsValidTarget(SmiteSpell.Range) && h.Health <= 20 + 8 * myHero.Level))
+                {
+                    SmiteSpell.Cast(target);
+                    return;
+                }
+            }
+            if (ComboMenu["comboWithDuelSmite"].Cast<CheckBox>().CurrentValue &&
+                SmiteSpell.Handle.Name == "s5_summonersmiteduel" &&
+                Orbwalker.ActiveModesFlags.HasFlag(Orbwalker.ActiveModes.Combo))
+            {
+                foreach (
+                    var target in
+                        EntityManager.Heroes.Enemies
+                            .Where(h => h.IsValidTarget(SmiteSpell.Range)).OrderByDescending(TargetSelector.GetPriority)
+                    )
+                {
+                    SmiteSpell.Cast(target);
+                    return;
+                }
+            }
+        }
+
+        internal static void UseItems2(Obj_AI_Base target)
+        {
+            var RivenServerPosition = myHero.ServerPosition.To2D();
+            var targetServerPosition = target.ServerPosition.To2D();
+
+            if (Item.CanUseItem(ItemId.Youmuus_Ghostblade) && myHero.GetAutoAttackRange() > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Youmuus_Ghostblade);
+            }
+        }
+
+        internal static void UseItems(Obj_AI_Base target)
+        {
+            var RivenServerPosition = myHero.ServerPosition.To2D();
+            var targetServerPosition = target.ServerPosition.To2D();
+
+            if (Item.CanUseItem(ItemId.Ravenous_Hydra_Melee_Only) && 400 > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Ravenous_Hydra_Melee_Only);
+            }
+            if (Item.CanUseItem(ItemId.Tiamat_Melee_Only) && 400 > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Tiamat_Melee_Only);
+            }
+            if (Item.CanUseItem(ItemId.Titanic_Hydra) && 400 > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Titanic_Hydra);
+            }
+            if (Item.CanUseItem(ItemId.Blade_of_the_Ruined_King) && 550 > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Blade_of_the_Ruined_King);
+            }
+
+            if (Item.CanUseItem(ItemId.Bilgewater_Cutlass) && 550 > myHero.Distance(target))
+            {
+                Item.UseItem(ItemId.Bilgewater_Cutlass);
             }
         }
 
